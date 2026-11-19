@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    --bg: #fff3f8;
+    --card: #ffffff;
+    --ink: #3c2830;
+    --sub: #765861;
+    --line: #efdce1;
+    --accent: #b5224d;
+    --accent-dark: #8e1637;
+    --accent-ink: #ffffff;
+    --soft: #fde9ef;
+    --soft-strong: #f9d9e3;
+    --ok: #147544;
+    --ok-soft: #e5f6eb;
+    --posted: #665365;
+    --posted-soft: #f1edf1;
+    --focus: #7d1740;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; color-scheme: light; }
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  ::selection { background: var(--soft-strong); color: var(--accent-dark); }
+  .wrap {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(48px, env(safe-area-inset-bottom));
+  }
+  header {
+    position: relative;
+    overflow: hidden;
+    padding: 21px 20px 20px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #951839 0%, #b5224d 100%);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(140, 29, 63, .22);
+  }
+  header h1 {
+    position: relative;
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.35;
+    letter-spacing: .01em;
+  }
+  header p {
+    position: relative;
+    margin: 7px 0 0;
+    color: #ffffff;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .card {
+    margin-top: 18px;
+    padding: 18px;
+    overflow: hidden;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: 0 7px 20px rgba(85, 35, 48, .07);
+  }
+  .card[data-slot] { scroll-margin-top: 16px; }
+  .card:has(.badge.ok) {
+    border-color: #9ed7b6;
+    background: #fcfffd;
+    box-shadow: 0 8px 22px rgba(24, 117, 68, .10);
+  }
+  .card:has(.badge.ok) .mark { background: var(--ok-soft); color: var(--ok); }
+  .card:has(.badge.posted) { border-color: #ddd3de; background: #fdfbfd; }
+  .card:has(.badge.posted) .mark { background: var(--posted-soft); color: var(--posted); }
+  .head { display: flex; gap: 12px; align-items: flex-start; }
+  .head > div:last-child { min-width: 0; }
+  .mark {
+    display: grid;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 14px;
+    background: var(--soft);
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: 800;
+  }
+  .name { overflow-wrap: anywhere; font-size: 17px; font-weight: 800; line-height: 1.48; }
+  .meta { margin-top: 4px; color: var(--sub); font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
+  .meta a {
+    color: var(--accent-dark);
+    font-weight: 700;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    margin-top: 10px;
+    padding: 3px 11px;
+    border-radius: 999px;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.posted { background: var(--posted-soft); color: var(--posted); }
+  textarea {
+    display: block;
+    width: 100%;
+    min-height: 216px;
+    margin-top: 18px;
+    padding: 15px;
+    border: 1px solid #dfcbd1;
+    border-radius: 16px;
+    background: #fffdfd;
+    color: var(--ink);
+    caret-color: var(--accent);
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.72;
+    resize: none;
+    transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+  }
+  textarea:hover { border-color: #cda6b2; }
+  textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(181, 34, 77, .16); background: #fff; }
+  textarea:disabled { background: #f8f3f5; color: #735f67; cursor: not-allowed; }
+  .count { margin-top: 6px; color: var(--sub); font-size: 16px; font-variant-numeric: tabular-nums; text-align: right; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.35;
+    text-align: center;
+    transition: transform .14s ease, background-color .14s ease, border-color .14s ease, box-shadow .14s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:hover { border-color: #d9adb9; background: #fff7f9; }
+  button:active { transform: translateY(1px); }
+  button:focus-visible, input:focus-visible { outline: 3px solid rgba(125, 23, 64, .25); outline-offset: 2px; }
+  button.primary {
+    flex: 1 0 100%;
+    min-height: 54px;
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+    box-shadow: 0 5px 12px rgba(160, 24, 62, .22);
+    font-size: 17px;
+  }
+  button.primary:hover { border-color: var(--accent-dark); background: var(--accent-dark); }
+  button.small { flex: 1 1 150px; color: var(--sub); font-weight: 700; }
+  button:disabled { cursor: wait; opacity: .58; transform: none; }
+  h2 { margin: 40px 4px 8px; color: var(--ink); font-size: 21px; line-height: 1.4; }
+  label { display: block; margin-top: 18px; color: var(--ink); font-size: 16px; font-weight: 800; line-height: 1.45; }
+  label:first-child { margin-top: 0; }
+  input[type=url], input[type=text], input[type=date], input[type=file] {
+    width: 100%;
+    min-height: 50px;
+    margin-top: 6px;
+    padding: 11px 13px;
+    border: 1px solid #dfcbd1;
+    border-radius: 14px;
+    background: #fffdfd;
+    color: var(--ink);
+    caret-color: var(--accent);
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  input[type=url]::placeholder, input[type=text]::placeholder { color: #73525e; opacity: 1; }
+  input[type=file] { padding: 6px; }
+  input[type=file]::file-selector-button {
+    min-height: 36px;
+    margin-right: 10px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--soft);
+    color: var(--accent-dark);
+    cursor: pointer;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 800;
+  }
+  input[type=url]:focus, input[type=text]:focus, input[type=date]:focus, input[type=file]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(181, 34, 77, .16); background: #fff; }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .thumbs img { width: 76px; height: 76px; object-fit: cover; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 3px 8px rgba(85, 35, 48, .08); }
+  .hint { margin-top: 7px; color: var(--sub); font-size: 16px; line-height: 1.55; }
+  .empty {
+    padding: 32px 20px;
+    border-style: dashed;
+    background: #fffafa;
+    color: var(--sub);
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+  }
+  #toast {
+    position: fixed;
+    z-index: 9;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: 50%;
+    display: none;
+    width: calc(100% - 32px);
+    max-width: 568px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, .25);
+    border-radius: 14px;
+    background: #542234;
+    box-shadow: 0 10px 28px rgba(66, 24, 39, .28);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: center;
+    transform: translateX(-50%);
+  }
+  #loading {
+    display: grid;
+    place-items: center;
+    gap: 12px;
+    min-height: 180px;
+    color: var(--sub);
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+  }
+  #loading::before {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--soft-strong);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    content: "";
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 480px) {
+    button.small { flex-basis: 100%; }
+  }
+  @media (max-width: 374px) {
+    header { padding: 19px 18px; }
+    .card { padding: 16px; }
+    .mark { width: 38px; height: 38px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title">今日の楽天ROOM</h1>
+    <p>文を直接直して「これで決定」を押してね。夜9時までに決定がなければ、今の文で出します。</p>
+  </header>
+
+  <div id="loading">読み込み中…</div>
+  <div id="items"></div>
+
+  <h2>次に出したい物をストック</h2>
+  <div class="card">
+    <label for="s-url">楽天のURL</label>
+    <input id="s-url" type="url" placeholder="https://item.rakuten.co.jp/…" inputmode="url">
+    <label for="s-memo">ひとことメモ（なくてもOK）</label>
+    <input id="s-memo" type="text" placeholder="例：うちで使ってるティッシュケース">
+    <label for="s-date">出したい日（なくてもOK）</label>
+    <input id="s-date" type="date">
+    <label for="s-photo">写真（実際の写真で投稿したいとき）</label>
+    <input id="s-photo" type="file" accept="image/*" multiple>
+    <div class="hint">4枚まで。付けた写真はその商品を投稿するときに使います。</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="row"><button class="primary" id="s-send">ストックする</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+  const K = new URLSearchParams(location.search).get('k') || '';
+  const API = 'https://script.google.com/macros/s/AKfycbwSTyI08QGF0T1sXCIohT3aZe-vGYkQpM1rnRXpI_Cksvr8VxUfFPjkO151jQt4afjnJw/exec';
+  let state = null;
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toast._t); toast._t = setTimeout(() => { t.style.display = 'none'; }, 3500);
+  }
+  async function call(fn, k, ...args) {
+    let res;
+    try { res = await fetch(API, { method: 'POST', body: JSON.stringify({ fn, k, args }) }); }
+    catch (e) { throw new Error('つながりませんでした。電波のいい所でもう一度押してください'); }
+    const j = await res.json().catch(() => ({ ok: false, error: '返事が読めませんでした' }));
+    if (!j.ok) throw new Error(j.error || 'うまくいきませんでした');
+    return j.data;
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function grow(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight + 4) + 'px'; }
+
+  function render(data) {
+    state = data;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('title').textContent = `今日の楽天ROOM（${data.label}）`;
+    const box = document.getElementById('items');
+    if (!data.items.length) { box.innerHTML = '<div class="card empty">今日の投稿はお休みです</div>'; return; }
+    box.innerHTML = data.items.map(it => `
+      <div class="card" data-slot="${it.slot}">
+        <div class="head">
+          <div class="mark">${esc(it.mark)}</div>
+          <div>
+            <div class="name">${esc(it.name)}</div>
+            <div class="meta">${esc(it.price)}${it.url ? ` ・ <a href="${esc(it.url)}" target="_blank" rel="noopener">商品ページを見る</a>` : ''}</div>
+            ${it.posted ? '<span class="badge posted">投稿ずみ</span>' : it.decided ? '<span class="badge ok">✓ 決定ずみ</span>' : ''}
+          </div>
+        </div>
+        <textarea ${it.canEdit ? '' : 'disabled'} maxlength="500">${esc(it.text)}</textarea>
+        <div class="count"><span class="n">${it.text.length}</span> / 500</div>
+        ${it.canEdit ? `
+        <div class="row">
+          <button class="primary act-decide">${it.decided ? 'もう一度決定する' : 'これで決定'}</button>
+          <button class="small act-reset">ミッチーの文に戻す</button>
+          ${it.canSwap ? '<button class="small act-swap">商品を替える</button>' : ''}
+        </div>` : ''}
+      </div>`).join('');
+    box.querySelectorAll('.card[data-slot]').forEach(card => {
+      const slot = Number(card.dataset.slot);
+      const it = data.items.find(x => x.slot === slot);
+      const ta = card.querySelector('textarea');
+      grow(ta);
+      ta.addEventListener('input', () => { grow(ta); card.querySelector('.n').textContent = ta.value.length; });
+      const d = card.querySelector('.act-decide');
+      if (d) d.onclick = async () => {
+        d.disabled = true; d.textContent = '送っています…';
+        try { render(await call('api_decide', K, slot, ta.value)); toast(`${it.mark}をこの文で決定しました`); }
+        catch (e) { toast(e.message || '送れませんでした'); d.disabled = false; d.textContent = 'これで決定'; }
+      };
+      const r = card.querySelector('.act-reset');
+      if (r) r.onclick = () => { ta.value = it.mitchyText; grow(ta); card.querySelector('.n').textContent = ta.value.length; toast('ミッチーの文に戻しました（まだ決定はしていません）'); };
+      const s = card.querySelector('.act-swap');
+      if (s) s.onclick = async () => {
+        const msg = data.spares > 0 ? `${it.mark}の商品を、別の商品に替えますか？` : `予備の商品がありません。${it.mark}を今日はお休みにしますか？`;
+        if (!confirm(msg)) return;
+        s.disabled = true; s.textContent = '替えています…';
+        try { const res = await call('api_swap', K, slot); render(res); toast(res.message); }
+        catch (e) { toast(e.message || '替えられませんでした'); s.disabled = false; s.textContent = '商品を替える'; }
+      };
+    });
+  }
+
+  // 写真は送る前に小さくする（長い辺 1600px・JPEG）
+  let photos = [];
+  function shrink(file) {
+    return new Promise((ok, ng) => {
+      const img = new Image(); const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const max = 1600, sc = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        const dataUrl = c.toDataURL('image/jpeg', 0.85);
+        ok({ name: file.name, mime: 'image/jpeg', data: dataUrl.split(',')[1], preview: dataUrl });
+      };
+      img.onerror = () => ng(new Error('写真を読めませんでした'));
+      img.src = url;
+    });
+  }
+  document.getElementById('s-photo').addEventListener('change', async e => {
+    const files = [...e.target.files].slice(0, 4);
+    try { photos = await Promise.all(files.map(shrink)); } catch (err) { toast(err.message); photos = []; }
+    document.getElementById('thumbs').innerHTML = photos.map(p => `<img src="${p.preview}" alt="">`).join('');
+  });
+  document.getElementById('s-send').onclick = async () => {
+    const b = document.getElementById('s-send');
+    const stock = {
+      url: document.getElementById('s-url').value, memo: document.getElementById('s-memo').value,
+      wantDate: document.getElementById('s-date').value,
+      photos: photos.map(p => ({ name: p.name, mime: p.mime, data: p.data })),
+    };
+    if (!stock.url.trim() && !stock.memo.trim()) { toast('URLか、ひとことメモを入れてね'); return; }
+    b.disabled = true; b.textContent = '送っています…';
+    try {
+      const res = await call('api_stock', K, stock);
+      toast(res.message);
+      ['s-url', 's-memo', 's-date', 's-photo'].forEach(id => { document.getElementById(id).value = ''; });
+      photos = []; document.getElementById('thumbs').innerHTML = '';
+    } catch (e) { toast(e.message || '送れませんでした'); }
+    b.disabled = false; b.textContent = 'ストックする';
+  };
+
+  call('api_load', K).then(render).catch(e => {
+    document.getElementById('loading').textContent = e.message || '読み込めませんでした';
+  });
+</script>
+</body>
+</html>
