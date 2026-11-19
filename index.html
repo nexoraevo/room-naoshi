@@ -332,6 +332,14 @@
     try { Object.assign(drafts, JSON.parse(localStorage.getItem(draftKey) || '{}')); } catch (e) {}
   }
   function saveDrafts() { try { localStorage.setItem(draftKey, JSON.stringify(drafts)); } catch (e) {} }
+  // サーバーにも置く：打ち終わって1秒後・写真を選ぶ直前・画面を離れるとき
+  const draftTimers = {};
+  function pushDraft(slot, now) {
+    clearTimeout(draftTimers[slot]);
+    const send = () => call('api_draft', K, slot, drafts[slot] === undefined ? '' : drafts[slot]).catch(() => {});
+    if (now) send(); else draftTimers[slot] = setTimeout(send, 1000);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Object.keys(draftTimers).forEach(s => pushDraft(Number(s), true)); });
   function pending() { return Object.keys(drafts).length > 0 || Object.values(cardPhotos).some(a => a && a.length); }
   window.addEventListener('beforeunload', e => { if (pending()) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -351,6 +359,7 @@
     document.getElementById('title').textContent = `今日の楽天ROOM（${data.label}）`;
     const box = document.getElementById('items');
     if (!data.items.length) { box.innerHTML = '<div class="card empty">今日の投稿はお休みです</div>'; return; }
+    Object.entries(data.drafts || {}).forEach(([slot, t]) => { if (drafts[slot] === undefined) drafts[slot] = t; });
     data.items.forEach(it => { if (drafts[it.slot] !== undefined && drafts[it.slot] === it.text) delete drafts[it.slot]; });
     saveDrafts();
     box.innerHTML = data.items.map(it => {
@@ -391,9 +400,10 @@
       ta.addEventListener('input', () => {
         grow(ta); card.querySelector('.n').textContent = ta.value.length;
         if (ta.value === it.text) delete drafts[slot]; else drafts[slot] = ta.value;
-        saveDrafts(); markEditing();
+        saveDrafts(); markEditing(); pushDraft(slot);
       });
       const pi = card.querySelector('.card-photo');
+      if (pi) pi.addEventListener('click', () => pushDraft(slot, true));
       if (pi) pi.addEventListener('change', async e => {
         const files = [...e.target.files].slice(0, 4);
         try { cardPhotos[slot] = await Promise.all(files.map(shrink)); } catch (err) { toast(err.message); cardPhotos[slot] = []; }
@@ -402,6 +412,7 @@
       });
       const d = card.querySelector('.act-decide');
       if (d) d.onclick = async () => {
+        if (ta.value.trim() === it.mitchyText.trim() && !confirm('文は直していません（ミッチーの文のまま）。\nこのまま決定しますか？')) return;
         d.disabled = true; d.textContent = '送っています…';
         const sent = ta.value, ph = (cardPhotos[slot] || []).map(p => ({ name: p.name, mime: p.mime, data: p.data }));
         try {
@@ -415,7 +426,7 @@
       if (r) r.onclick = () => {
         ta.value = it.mitchyText; grow(ta); card.querySelector('.n').textContent = ta.value.length;
         if (ta.value === it.text) delete drafts[slot]; else drafts[slot] = ta.value;
-        saveDrafts(); markEditing();
+        saveDrafts(); markEditing(); pushDraft(slot, true);
         toast('ミッチーの文に戻しました（まだ決定はしていません）');
       };
       const s = card.querySelector('.act-swap');
