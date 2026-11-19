@@ -114,6 +114,11 @@
     line-height: 1.35;
   }
   .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.wip { background: #fff3d6; color: #8a5a00; }
+  .badge.photo { background: #e8f0ff; color: #2b4c8c; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .badges .badge { margin-top: 0; }
+  .photo-label { display: block; margin-top: 14px; }
   .badge.posted { background: var(--posted-soft); color: var(--posted); }
   textarea {
     display: block;
@@ -280,7 +285,8 @@
   <div id="loading">読み込み中…</div>
   <div id="items"></div>
 
-  <h2>次に出したい物をストック</h2>
+  <h2>明日から先に出したい物をストック</h2>
+  <p class="hint">今日の①②に写真を付けるときは、上のカードの「この商品の写真をつける」から。</p>
   <div class="card">
     <label for="s-url">楽天のURL</label>
     <input id="s-url" type="url" placeholder="https://item.rakuten.co.jp/…" inputmode="url">
@@ -318,51 +324,106 @@
   function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   function grow(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight + 4) + 'px'; }
 
+  // 直しの途中の文と、カードに付けた写真は、描き直しても消さない（文はスマホの中にも保存する）
+  const drafts = {}, cardPhotos = {};
+  let draftKey = '';
+  function loadDrafts(day) {
+    draftKey = 'room-draft-' + day;
+    try { Object.assign(drafts, JSON.parse(localStorage.getItem(draftKey) || '{}')); } catch (e) {}
+  }
+  function saveDrafts() { try { localStorage.setItem(draftKey, JSON.stringify(drafts)); } catch (e) {} }
+  function pending() { return Object.keys(drafts).length > 0 || Object.values(cardPhotos).some(a => a && a.length); }
+  window.addEventListener('beforeunload', e => { if (pending()) { e.preventDefault(); e.returnValue = ''; } });
+
+  function badgeHtml(it, editing) {
+    const b = [];
+    if (it.posted) b.push('<span class="badge posted">投稿ずみ</span>');
+    else if (editing) b.push('<span class="badge wip">直しの途中（まだ決定していません）</span>');
+    else if (it.decided) b.push(`<span class="badge ok">✓ 決定ずみ（${it.fixed ? '直しあり' : '直しなし'}）</span>`);
+    if (it.photos) b.push(`<span class="badge photo">写真${it.photos}枚つき</span>`);
+    return b.join(' ');
+  }
+
   function render(data) {
     state = data;
+    if (!draftKey) loadDrafts(data.day);
     document.getElementById('loading').style.display = 'none';
     document.getElementById('title').textContent = `今日の楽天ROOM（${data.label}）`;
     const box = document.getElementById('items');
     if (!data.items.length) { box.innerHTML = '<div class="card empty">今日の投稿はお休みです</div>'; return; }
-    box.innerHTML = data.items.map(it => `
+    data.items.forEach(it => { if (drafts[it.slot] !== undefined && drafts[it.slot] === it.text) delete drafts[it.slot]; });
+    saveDrafts();
+    box.innerHTML = data.items.map(it => {
+      const editing = it.canEdit && drafts[it.slot] !== undefined;
+      const text = editing ? drafts[it.slot] : it.text;
+      return `
       <div class="card" data-slot="${it.slot}">
         <div class="head">
           <div class="mark">${esc(it.mark)}</div>
           <div>
             <div class="name">${esc(it.name)}</div>
             <div class="meta">${esc(it.price)}${it.url ? ` ・ <a href="${esc(it.url)}" target="_blank" rel="noopener">商品ページを見る</a>` : ''}</div>
-            ${it.posted ? '<span class="badge posted">投稿ずみ</span>' : it.decided ? '<span class="badge ok">✓ 決定ずみ</span>' : ''}
+            <div class="badges">${badgeHtml(it, editing)}</div>
           </div>
         </div>
-        <textarea ${it.canEdit ? '' : 'disabled'} maxlength="500">${esc(it.text)}</textarea>
-        <div class="count"><span class="n">${it.text.length}</span> / 500</div>
+        <textarea ${it.canEdit ? '' : 'disabled'} maxlength="500">${esc(text)}</textarea>
+        <div class="count"><span class="n">${text.length}</span> / 500</div>
         ${it.canEdit ? `
+        <label class="photo-label" for="p-${it.slot}">この商品の写真をつける（あれば・4枚まで）</label>
+        <input id="p-${it.slot}" class="card-photo" type="file" accept="image/*" multiple>
+        <div class="thumbs"></div>
         <div class="row">
-          <button class="primary act-decide">${it.decided ? 'もう一度決定する' : 'これで決定'}</button>
+          <button class="primary act-decide">${it.decided ? 'この文でもう一度決定' : 'これで決定'}</button>
           <button class="small act-reset">ミッチーの文に戻す</button>
           ${it.canSwap ? '<button class="small act-swap">商品を替える</button>' : ''}
-        </div>` : ''}
-      </div>`).join('');
+        </div>
+        <div class="hint">「これで決定」で、この文と写真をいっしょに送ります。</div>` : ''}
+      </div>`;
+    }).join('');
     box.querySelectorAll('.card[data-slot]').forEach(card => {
       const slot = Number(card.dataset.slot);
       const it = data.items.find(x => x.slot === slot);
       const ta = card.querySelector('textarea');
-      grow(ta);
-      ta.addEventListener('input', () => { grow(ta); card.querySelector('.n').textContent = ta.value.length; });
+      const thumbs = card.querySelector('.thumbs');
+      const drawThumbs = () => { if (thumbs) thumbs.innerHTML = (cardPhotos[slot] || []).map(p => `<img src="${p.preview}" alt="">`).join(''); };
+      const markEditing = () => { card.querySelector('.badges').innerHTML = badgeHtml(it, drafts[slot] !== undefined); };
+      grow(ta); drawThumbs();
+      ta.addEventListener('input', () => {
+        grow(ta); card.querySelector('.n').textContent = ta.value.length;
+        if (ta.value === it.text) delete drafts[slot]; else drafts[slot] = ta.value;
+        saveDrafts(); markEditing();
+      });
+      const pi = card.querySelector('.card-photo');
+      if (pi) pi.addEventListener('change', async e => {
+        const files = [...e.target.files].slice(0, 4);
+        try { cardPhotos[slot] = await Promise.all(files.map(shrink)); } catch (err) { toast(err.message); cardPhotos[slot] = []; }
+        drawThumbs();
+        if (cardPhotos[slot].length) toast(`写真${cardPhotos[slot].length}枚を選びました。「これで決定」で送ります`);
+      });
       const d = card.querySelector('.act-decide');
       if (d) d.onclick = async () => {
         d.disabled = true; d.textContent = '送っています…';
-        try { render(await call('api_decide', K, slot, ta.value)); toast(`${it.mark}をこの文で決定しました`); }
-        catch (e) { toast(e.message || '送れませんでした'); d.disabled = false; d.textContent = 'これで決定'; }
+        const sent = ta.value, ph = (cardPhotos[slot] || []).map(p => ({ name: p.name, mime: p.mime, data: p.data }));
+        try {
+          const res = await call('api_decide', K, slot, sent, ph);
+          delete drafts[slot]; saveDrafts(); cardPhotos[slot] = [];
+          render(res);
+          toast(`${it.mark}を決定しました${sent.trim() !== it.mitchyText.trim() ? '（直しあり）' : ''}${ph.length ? `・写真${ph.length}枚` : ''}`);
+        } catch (e) { toast(e.message || '送れませんでした'); d.disabled = false; d.textContent = 'これで決定'; }
       };
       const r = card.querySelector('.act-reset');
-      if (r) r.onclick = () => { ta.value = it.mitchyText; grow(ta); card.querySelector('.n').textContent = ta.value.length; toast('ミッチーの文に戻しました（まだ決定はしていません）'); };
+      if (r) r.onclick = () => {
+        ta.value = it.mitchyText; grow(ta); card.querySelector('.n').textContent = ta.value.length;
+        if (ta.value === it.text) delete drafts[slot]; else drafts[slot] = ta.value;
+        saveDrafts(); markEditing();
+        toast('ミッチーの文に戻しました（まだ決定はしていません）');
+      };
       const s = card.querySelector('.act-swap');
       if (s) s.onclick = async () => {
         const msg = data.spares > 0 ? `${it.mark}の商品を、別の商品に替えますか？` : `予備の商品がありません。${it.mark}を今日はお休みにしますか？`;
         if (!confirm(msg)) return;
         s.disabled = true; s.textContent = '替えています…';
-        try { const res = await call('api_swap', K, slot); render(res); toast(res.message); }
+        try { const res = await call('api_swap', K, slot); delete drafts[slot]; saveDrafts(); cardPhotos[slot] = []; render(res); toast(res.message); }
         catch (e) { toast(e.message || '替えられませんでした'); s.disabled = false; s.textContent = '商品を替える'; }
       };
     });
